@@ -154,7 +154,16 @@ Ticket médio ... R$ 68,93
 Nenhuma ação necessária.
 ```
 
-![Execução no n8n](assets/print-monitor.png)
+![Requisição e resposta no Postman](assets/print-postman.png)
+
+*O fluxo completo no n8n. Embaixo, separado, o ramo de tratamento de erro.
+Os itens vermelhos no histórico são os testes em que o banco foi derrubado de propósito.*
+
+![Fluxo completo na aba Executions do n8n](assets/print-monitor.png)
+
+*O nó de cálculo aberto: à esquerda o que entra, à direita as métricas já calculadas.*
+
+![Entrada e saída do nó Calcular ROAS e CPA](assets/print-nodes.png)
 
 ---
 
