@@ -19,7 +19,9 @@ workflow automatiza a detecção e guarda o histórico para análise posterior.
 - Quando há alerta, informa **quanto falta** de faturamento e a quantas vendas isso equivale
 - Retorna diagnóstico estruturado e grava a linha em `anuncios_monitorados`
 
-## Os 9 nós, na ordem
+## Os 9 nós do fluxo principal
+
+> Mais 4 nós no ramo de tratamento de erro, descrito adiante — 13 no total.
 
 ```
 Receber Dados do Anuncio (Webhook)
@@ -179,6 +181,60 @@ Estado após a bateria de testes:
 
 ---
 
+## Tratamento de erro
+
+Erro esperado (payload inválido) já é tratado pelo fluxo principal, com os status
+HTTP acima. Esta seção é sobre a outra categoria: **o nó quebrou** — banco fora do
+ar, timeout, credencial expirada.
+
+Duas camadas:
+
+**1. Retry por nó.** O nó `Gravar no Postgres` está com `retryOnFail`, 3 tentativas
+e 2 segundos de espera entre elas. Cobre a falha transitória — o banco engasgou por
+um instante e a segunda tentativa funciona.
+
+**2. Error Trigger.** Um ramo independente, que o n8n aciona sozinho quando a
+execução falha:
+
+```
+Erro na Execucao (Error Trigger)
+   → Formatar Log de Erro (Code)
+   → Converter para Texto (Convert to File)
+   → Gravar Log de Erro (Read/Write Files, com append)
+```
+
+O log vai para `~/.n8n-files/erros-n8n.log`, uma linha por falha:
+
+```
+2026-08-22 23:56:06 | workflow=Monitor de Performance de Anuncios Shopee | execucao=31 | modo=webhook | no=Gravar no Postgres | erro=Connection refused
+```
+
+**Decisões técnicas:**
+
+- **O log vai para arquivo, não para o Postgres.** Se o handler gravasse no banco,
+  ele quebraria junto com o que estava tentando registrar — o log sumiria exatamente
+  quando é mais necessário. Quem registra a falha não pode depender da peça que falhou.
+
+- **O caminho do log é `~/.n8n-files/`, não uma pasta qualquer.** O n8n restringe
+  escrita em disco: `restrictFileAccessTo` vem com `~/.n8n-files` como padrão, e
+  qualquer outro caminho falha com "Access to the file is not allowed". A opção foi
+  respeitar a restrição em vez de afrouxar a configuração da instância.
+
+- **`timezone: America/Sao_Paulo` explícito nas configurações do workflow.** O padrão
+  do n8n é `America/New_York`. Sem essa definição, o `$now` dos nós Code grava uma
+  hora a menos — o que aparecia nos carimbos do log.
+
+**Testado derrubando o ambiente:** com o container do Postgres parado, uma requisição
+de produção respondeu `200` em 0,2s (a resposta vem antes da gravação), o nó tentou
+gravar 3 vezes em ~5 segundos, desistiu com `Connection refused`, e o Error Trigger
+registrou a falha no log. Com o banco de volta, a mesma requisição gravou normalmente.
+
+**Limite conhecido:** a requisição que chega enquanto o banco está fora se perde — ela
+recebeu `200` e nunca foi persistida. Retry cobre falha de segundos, não de minutos.
+Resolver isso exigiria fila com dead-letter, fora do escopo deste projeto.
+
+---
+
 ## Stack
 
 | Camada | Tecnologia |
@@ -187,6 +243,7 @@ Estado após a bateria de testes:
 | Gatilho | Webhook (POST, modo `responseNode`) |
 | Lógica | Nó Code (JavaScript) · nó IF com operadores de número |
 | Persistência | PostgreSQL 17 em Docker, SQL parametrizado |
+| Tratamento de erro | `retryOnFail` por nó · Error Trigger gravando log em disco |
 | Testes | Coleção Postman com asserções automáticas |
 
 ---

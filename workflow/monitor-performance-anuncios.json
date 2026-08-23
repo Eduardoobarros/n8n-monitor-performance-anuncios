@@ -76,7 +76,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const d = $input.first().json.body ?? $input.first().json;\n\nconst brl = (v) => {\n  const [inteiro, centavos] = Math.abs(v).toFixed(2).split('.');\n  const milhar = inteiro.replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.');\n  return (v < 0 ? '-R$ ' : 'R$ ') + milhar + ',' + centavos;\n};\n\nconst anuncio = d.anuncio || 'Anuncio sem identificacao';\nconst gasto = Number(d.gasto) || 0;\nconst faturamento = Number(d.faturamento) || 0;\nconst vendas = Number(d.vendas_qtd) || 0;\nconst cliques = Number(d.cliques) || 0;\nconst impressoes = Number(d.impressoes) || 0;\n// limite de ROAS aceitavel: vem no payload ou cai no padrao 2.0\nconst roasMinimo = Number(d.roas_minimo) || 2;\n\nconst roas = gasto > 0 ? faturamento / gasto : 0;\nconst cpa = vendas > 0 ? gasto / vendas : 0;\nconst ticketMedio = vendas > 0 ? faturamento / vendas : 0;\nconst resultado = faturamento - gasto;\nconst taxaConversao = cliques > 0 ? (vendas / cliques) * 100 : null;\n// CTR so existe se vierem impressoes; sem elas fica null e o banco guarda NULL\nconst ctr = impressoes > 0 ? (cliques / impressoes) * 100 : null;\n\n// quanto de faturamento ainda falta para o anuncio bater o ROAS minimo\nconst gapFaturamento = Math.max(gasto * roasMinimo - faturamento, 0);\nconst vendasFaltantes = ticketMedio > 0 ? Math.ceil(gapFaturamento / ticketMedio) : 0;\n\nconst classificacao = roas >= roasMinimo ? 'saudavel' : roas >= 1 ? 'atencao' : 'critico';\n\nreturn [{\n  json: {\n    anuncio,\n    data: $now.toFormat('dd/MM/yyyy HH:mm'),\n    gasto,\n    faturamento,\n    vendas_qtd: vendas,\n    cliques,\n    impressoes,\n    roas: Number(roas.toFixed(2)),\n    roas_minimo: roasMinimo,\n    cpa: Number(cpa.toFixed(2)),\n    ticket_medio: Number(ticketMedio.toFixed(2)),\n    resultado: Number(resultado.toFixed(2)),\n    taxa_conversao: taxaConversao === null ? null : Number(taxaConversao.toFixed(2)),\n    ctr: ctr === null ? null : Number(ctr.toFixed(2)),\n    gap_faturamento: Number(gapFaturamento.toFixed(2)),\n    vendas_faltantes: vendasFaltantes,\n    classificacao,\n    gasto_fmt: brl(gasto),\n    faturamento_fmt: brl(faturamento),\n    resultado_fmt: brl(resultado),\n    cpa_fmt: brl(cpa),\n    ticket_medio_fmt: brl(ticketMedio),\n    gap_fmt: brl(gapFaturamento),\n  },\n}];\n"
+        "jsCode": "const d = $input.first().json.body ?? $input.first().json;\n\nconst brl = (v) => {\n  const [inteiro, centavos] = Math.abs(v).toFixed(2).split('.');\n  const milhar = inteiro.replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.');\n  return (v < 0 ? '-R$ ' : 'R$ ') + milhar + ',' + centavos;\n};\n\nconst anuncio = d.anuncio || 'Anuncio sem identificacao';\nconst gasto = Number(d.gasto) || 0;\nconst faturamento = Number(d.faturamento) || 0;\nconst vendas = Number(d.vendas_qtd) || 0;\nconst cliques = Number(d.cliques) || 0;\nconst impressoes = Number(d.impressoes) || 0;\n// meta de ROAS: vem no payload ou cai no padrao 3.0\nconst roasMinimo = Number(d.roas_minimo) || 3;\n\nconst roas = gasto > 0 ? faturamento / gasto : 0;\nconst cpa = vendas > 0 ? gasto / vendas : 0;\nconst ticketMedio = vendas > 0 ? faturamento / vendas : 0;\nconst resultado = faturamento - gasto;\nconst taxaConversao = cliques > 0 ? (vendas / cliques) * 100 : null;\n// CTR so existe se vierem impressoes; sem elas fica null e o banco guarda NULL\nconst ctr = impressoes > 0 ? (cliques / impressoes) * 100 : null;\n\n// quanto de faturamento ainda falta para o anuncio bater o ROAS minimo\nconst gapFaturamento = Math.max(gasto * roasMinimo - faturamento, 0);\nconst vendasFaltantes = ticketMedio > 0 ? Math.ceil(gapFaturamento / ticketMedio) : 0;\n\nconst classificacao = roas >= roasMinimo ? 'saudavel' : roas >= 1 ? 'atencao' : 'critico';\n\nreturn [{\n  json: {\n    anuncio,\n    data: $now.toFormat('dd/MM/yyyy HH:mm'),\n    gasto,\n    faturamento,\n    vendas_qtd: vendas,\n    cliques,\n    impressoes,\n    roas: Number(roas.toFixed(2)),\n    roas_minimo: roasMinimo,\n    cpa: Number(cpa.toFixed(2)),\n    ticket_medio: Number(ticketMedio.toFixed(2)),\n    resultado: Number(resultado.toFixed(2)),\n    taxa_conversao: taxaConversao === null ? null : Number(taxaConversao.toFixed(2)),\n    ctr: ctr === null ? null : Number(ctr.toFixed(2)),\n    gap_faturamento: Number(gapFaturamento.toFixed(2)),\n    vendas_faltantes: vendasFaltantes,\n    classificacao,\n    gasto_fmt: brl(gasto),\n    faturamento_fmt: brl(faturamento),\n    resultado_fmt: brl(resultado),\n    cpa_fmt: brl(cpa),\n    ticket_medio_fmt: brl(ticketMedio),\n    gap_fmt: brl(gapFaturamento),\n  },\n}];\n"
       },
       "id": "b3333333-3333-4333-8333-333333333333",
       "name": "Calcular ROAS e CPA",
@@ -252,7 +252,68 @@
           "id": "GGhwMMocHyXE88WT",
           "name": "Postgres Local (Docker)"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {},
+      "id": "ae111111-1111-4111-8111-111111111111",
+      "name": "Erro na Execucao",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -280,
+        760
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// O Error Trigger entrega um objeto com dois blocos: execution e workflow.\n// Nem todo campo vem sempre preenchido, entao tudo tem valor de reserva.\nconst d = $input.first().json;\nconst exec = d.execution ?? {};\nconst wf = d.workflow ?? {};\nconst erro = exec.error ?? {};\n\nconst carimbo = $now.toFormat('yyyy-MM-dd HH:mm:ss');\n\n// mensagem em uma linha so: quebra de linha estragaria o formato do log\nconst mensagem = String(erro.message ?? 'sem mensagem')\n  .replace(/\\s+/g, ' ')\n  .slice(0, 300);\n\nconst linha = [\n  carimbo,\n  `workflow=${wf.name ?? 'desconhecido'}`,\n  `execucao=${exec.id ?? '-'}`,\n  `modo=${exec.mode ?? '-'}`,\n  `no=${exec.lastNodeExecuted ?? '-'}`,\n  `erro=${mensagem}`,\n].join(' | ');\n\nreturn [{ json: { linha: linha + '\\n' } }];\n"
+      },
+      "id": "ae222222-2222-4222-8222-222222222222",
+      "name": "Formatar Log de Erro",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -40,
+        760
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "linha",
+        "options": {}
+      },
+      "id": "ae333333-3333-4333-8333-333333333333",
+      "name": "Converter para Texto",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        760
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "/Users/arthur/.n8n-files/erros-n8n.log",
+        "dataPropertyName": "data",
+        "options": {
+          "append": true
+        }
+      },
+      "id": "ae444444-4444-4444-8444-444444444444",
+      "name": "Gravar Log de Erro",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        760
+      ]
     }
   ],
   "connections": {
@@ -346,10 +407,44 @@
           }
         ]
       ]
+    },
+    "Erro na Execucao": {
+      "main": [
+        [
+          {
+            "node": "Formatar Log de Erro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar Log de Erro": {
+      "main": [
+        [
+          {
+            "node": "Converter para Texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Converter para Texto": {
+      "main": [
+        [
+          {
+            "node": "Gravar Log de Erro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
   },
   "pinData": null,
   "meta": {
