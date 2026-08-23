@@ -1,4 +1,4 @@
-# Monitor de Performance de Anúncios — n8n
+# Monitor de Performance de Anúncios
 
 Automação que recebe as métricas de um anúncio, calcula os indicadores de
 eficiência e dispara alerta quando o ROAS fica abaixo da meta. Construída em n8n,
@@ -21,7 +21,7 @@ workflow automatiza a detecção e guarda o histórico para análise posterior.
 
 ## Os 9 nós do fluxo principal
 
-> Mais 4 nós de cache (Redis) e 4 de tratamento de erro, descritos adiante — 17 no total.
+> Mais 4 nós de cache (Redis) e 4 de tratamento de erro, descritos adiante, 17 no total.
 
 ```
 Receber Dados do Anuncio (Webhook)
@@ -62,7 +62,7 @@ Todos no nó `Calcular ROAS e CPA`:
   deixaria a lógica ilegível e sem lugar para comentar o porquê.
 
 - **Meta de ROAS configurável, não hardcoded.** Vem em `roas_minimo` no payload e
-  cai em `3` como padrão. Cada categoria de produto tem margem diferente — fixar
+  cai em `3` como padrão. Cada categoria de produto tem margem diferente, fixar
   no código obrigaria a duplicar o workflow por categoria.
 
 - **Classificação em três níveis, alerta binário.** `critico` (ROAS < 1x, o
@@ -79,14 +79,14 @@ Todos no nó `Calcular ROAS e CPA`:
   fazer sem precisar interpretar texto.
 
 - **O nó Postgres vem depois do `Respond to Webhook`.** O nó Postgres substitui o
-  `$json` da saída — se viesse antes, a resposta HTTP sairia com `{id, criado_em}`
+  `$json` da saída, se viesse antes, a resposta HTTP sairia com `{id, criado_em}`
   em vez do diagnóstico. `Respond to Webhook` envia a resposta mas não encerra a
   execução, então a gravação acontece logo em seguida. O custo: se o INSERT
-  falhar, quem chamou já recebeu 200 — a falha fica visível na lista de execuções
+  falhar, quem chamou já recebeu 200, a falha fica visível na lista de execuções
   do n8n, não para o cliente.
 
 - **Parâmetros SQL posicionais (`$1, $2, $3, $4`), não concatenação.** O driver
-  envia comando e valores separados, o que elimina SQL injection — mesmo
+  envia comando e valores separados, o que elimina SQL injection, mesmo
   princípio do `PreparedStatement`. E são passados como **array**, não como lista
   separada por vírgula: a lista quebraria se um nome de produto contivesse vírgula.
 
@@ -113,7 +113,7 @@ Content-Type: application/json
 `anuncio`, `cliques`, `impressoes` e `roas_minimo` são opcionais. Os obrigatórios
 são `gasto`, `faturamento` e `vendas_qtd`.
 
-**Resposta — ROAS abaixo da meta**
+**Resposta. ROAS abaixo da meta**
 
 ```
 🔴 ALERTA — PERFORMANCE ABAIXO DO MÍNIMO
@@ -134,7 +134,7 @@ Faltam R$ 2.951,50 de faturamento para atingir o ROAS mínimo — cerca de 35 ve
 Ação sugerida: revisar segmentação e criativo, ou pausar o anúncio.
 ```
 
-**Resposta — ROAS saudável**
+**Resposta. ROAS saudável**
 
 ```
 🟢 ANÚNCIO DENTRO DA META
@@ -165,7 +165,7 @@ O resultado de cada monitoramento vira uma linha em `anuncios_monitorados`
 
 **Decisão:** valores monetários e percentuais em `NUMERIC`, nunca em ponto
 flutuante. Binário não representa `0,10` exatamente e o erro acumula a cada
-operação — o mesmo motivo pelo qual se usa `BigDecimal` em vez de `double` no Java.
+operação, o mesmo motivo pelo qual se usa `BigDecimal` em vez de `double` no Java.
 
 Estado após a bateria de testes:
 
@@ -207,7 +207,7 @@ Validar Dados do Anuncio
 
 - **A expiração é responsabilidade do Redis, não do workflow.** `expire: true`
   com `ttl: 300` faz a chave sumir sozinha. Guardar isso no Postgres exigiria uma
-  coluna de validade e uma rotina de limpeza — duas coisas a mais para manter.
+  coluna de validade e uma rotina de limpeza, duas coisas a mais para manter.
 
 - **O cache resolve a idempotência de tabela.** Sem ele, a mesma requisição
   enviada duas vezes gerava duas linhas em `anuncios_monitorados`, poluindo
@@ -225,7 +225,7 @@ Validar Dados do Anuncio
   ```
 
   Isso é obrigatório aqui. O nó Redis na operação `get` **descarta o item de
-  entrada** e devolve apenas `{ cache: ... }` — internamente ele cria um item
+  entrada** e devolve apenas `{ cache: ... }`, internamente ele cria um item
   vazio (`item = { json: {} }`) em vez de acrescentar o campo ao existente. As
   operações `set`, `push` e `delete` preservam a entrada; a `get` não. Sem essa
   correção, todo o payload se perdia entre o cache e o cálculo.
@@ -236,13 +236,13 @@ Validar Dados do Anuncio
 ## Tratamento de erro
 
 Erro esperado (payload inválido) já é tratado pelo fluxo principal, com os status
-HTTP acima. Esta seção é sobre a outra categoria: **o nó quebrou** — banco fora do
+HTTP acima. Esta seção é sobre a outra categoria: **o nó quebrou**, banco fora do
 ar, timeout, credencial expirada.
 
 Duas camadas:
 
 **1. Retry por nó.** O nó `Gravar no Postgres` está com `retryOnFail`, 3 tentativas
-e 2 segundos de espera entre elas. Cobre a falha transitória — o banco engasgou por
+e 2 segundos de espera entre elas. Cobre a falha transitória, o banco engasgou por
 um instante e a segunda tentativa funciona.
 
 **2. Error Trigger.** Um ramo independente, que o n8n aciona sozinho quando a
@@ -264,7 +264,7 @@ O log vai para `~/.n8n-files/erros-n8n.log`, uma linha por falha:
 **Decisões técnicas:**
 
 - **O log vai para arquivo, não para o Postgres.** Se o handler gravasse no banco,
-  ele quebraria junto com o que estava tentando registrar — o log sumiria exatamente
+  ele quebraria junto com o que estava tentando registrar, o log sumiria exatamente
   quando é mais necessário. Quem registra a falha não pode depender da peça que falhou.
 
 - **O caminho do log é `~/.n8n-files/`, não uma pasta qualquer.** O n8n restringe
@@ -274,14 +274,14 @@ O log vai para `~/.n8n-files/erros-n8n.log`, uma linha por falha:
 
 - **`timezone: America/Sao_Paulo` explícito nas configurações do workflow.** O padrão
   do n8n é `America/New_York`. Sem essa definição, o `$now` dos nós Code grava uma
-  hora a menos — o que aparecia nos carimbos do log.
+  hora a menos, o que aparecia nos carimbos do log.
 
 **Testado derrubando o ambiente:** com o container do Postgres parado, uma requisição
 de produção respondeu `200` em 0,2s (a resposta vem antes da gravação), o nó tentou
 gravar 3 vezes em ~5 segundos, desistiu com `Connection refused`, e o Error Trigger
 registrou a falha no log. Com o banco de volta, a mesma requisição gravou normalmente.
 
-**Limite conhecido:** a requisição que chega enquanto o banco está fora se perde — ela
+**Limite conhecido:** a requisição que chega enquanto o banco está fora se perde, ela
 recebeu `200` e nunca foi persistida. Retry cobre falha de segundos, não de minutos.
 Resolver isso exigiria fila com dead-letter, fora do escopo deste projeto.
 
@@ -318,7 +318,7 @@ docker exec -i n8n-postgres psql -U n8n_dev -d n8n_dados < sql/schema.sql
 ```
 
 Credenciais descartáveis, de desenvolvimento local. Repare que o host usa a porta
-**5433** — dentro do container o serviço continua na 5432 padrão.
+**5433**, dentro do container o serviço continua na 5432 padrão.
 
 **2. Importar o workflow**
 
@@ -331,7 +331,7 @@ banco `n8n_dados`, usuário `n8n_dev`. Depois, associar ao nó `Gravar no Postgr
 
 **4. Ativar e testar**
 
-O workflow precisa estar **ativo** — webhook de produção não responde com o
+O workflow precisa estar **ativo**, webhook de produção não responde com o
 workflow desligado.
 
 Importe [`postman/monitor-anuncios.postman_collection.json`](postman/) no Postman.
