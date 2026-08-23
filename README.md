@@ -317,9 +317,8 @@ docker run -d --name n8n-postgres \
 docker exec -i n8n-postgres psql -U n8n_dev -d n8n_dados < sql/schema.sql
 ```
 
-Credenciais descartáveis, de desenvolvimento local. A porta do host é **5433**
-porque a 5432 já estava ocupada por outra instalação do PostgreSQL na máquina —
-dentro do container o serviço continua na 5432.
+Credenciais descartáveis, de desenvolvimento local. Repare que o host usa a porta
+**5433** — dentro do container o serviço continua na 5432 padrão.
 
 **2. Importar o workflow**
 
