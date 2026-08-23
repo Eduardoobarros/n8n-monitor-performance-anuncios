@@ -21,7 +21,7 @@ workflow automatiza a detecção e guarda o histórico para análise posterior.
 
 ## Os 9 nós do fluxo principal
 
-> Mais 4 nós no ramo de tratamento de erro, descrito adiante — 13 no total.
+> Mais 4 nós de cache (Redis) e 4 de tratamento de erro, descritos adiante — 17 no total.
 
 ```
 Receber Dados do Anuncio (Webhook)
@@ -181,6 +181,58 @@ Estado após a bateria de testes:
 
 ---
 
+## Cache e idempotência (Redis)
+
+Antes de calcular qualquer coisa, o workflow verifica se aquele anúncio já foi
+processado nos últimos 5 minutos. Se já foi, devolve o resultado guardado e não
+recalcula nem grava de novo no banco.
+
+```
+Validar Dados do Anuncio
+   → Buscar Cache (Redis get → anuncio:<nome>)
+        → Ja Processado Recentemente? (IF)
+             [true]  → Responder do Cache (200, com origem: "cache")
+             [false] → Calcular ROAS e CPA → ... → Guardar no Cache (set, TTL 300s)
+```
+
+**Medido com a mesma requisição duas vezes seguidas:**
+
+| | 1ª chamada | 2ª chamada |
+|---|---|---|
+| Tempo de resposta | 838ms | **100ms** |
+| Campo `origem` | ausente (calculado) | `cache` |
+| Gravou no Postgres | sim | **não** |
+
+**Decisões técnicas:**
+
+- **A expiração é responsabilidade do Redis, não do workflow.** `expire: true`
+  com `ttl: 300` faz a chave sumir sozinha. Guardar isso no Postgres exigiria uma
+  coluna de validade e uma rotina de limpeza — duas coisas a mais para manter.
+
+- **O cache resolve a idempotência de tabela.** Sem ele, a mesma requisição
+  enviada duas vezes gerava duas linhas em `anuncios_monitorados`, poluindo
+  qualquer média histórica. A janela de 5 minutos é curta o bastante para não
+  esconder mudança real de performance, e longa o bastante para absorver reenvio.
+
+- **A resposta vinda do cache é marcada com `origem: "cache"`.** Quem consome
+  precisa saber se está lendo um número recalculado agora ou um de até 5 minutos
+  atrás. Devolver os dois indistinguíveis seria esconder informação relevante.
+
+- **O nó Code lê o payload pelo nome do nó de origem**, não pelo item que chega:
+
+  ```js
+  const d = $('Receber Dados do Anuncio').first().json.body ?? $input.first().json;
+  ```
+
+  Isso é obrigatório aqui. O nó Redis na operação `get` **descarta o item de
+  entrada** e devolve apenas `{ cache: ... }` — internamente ele cria um item
+  vazio (`item = { json: {} }`) em vez de acrescentar o campo ao existente. As
+  operações `set`, `push` e `delete` preservam a entrada; a `get` não. Sem essa
+  correção, todo o payload se perdia entre o cache e o cálculo.
+
+
+---
+
 ## Tratamento de erro
 
 Erro esperado (payload inválido) já é tratado pelo fluxo principal, com os status
@@ -242,6 +294,7 @@ Resolver isso exigiria fila com dead-letter, fora do escopo deste projeto.
 | Orquestração | n8n 2.35.7 |
 | Gatilho | Webhook (POST, modo `responseNode`) |
 | Lógica | Nó Code (JavaScript) · nó IF com operadores de número |
+| Cache | Redis 7 em Docker, chave com TTL de 300s |
 | Persistência | PostgreSQL 17 em Docker, SQL parametrizado |
 | Tratamento de erro | `retryOnFail` por nó · Error Trigger gravando log em disco |
 | Testes | Coleção Postman com asserções automáticas |
