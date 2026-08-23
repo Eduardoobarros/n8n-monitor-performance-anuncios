@@ -1,0 +1,174 @@
+{
+  "info": {
+    "name": "n8n - Monitor de Anuncios (local)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base",
+      "value": "http://localhost:5678",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. ROAS baixo → alerta dispara",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const b = pm.response.json();",
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.test('alerta = true', () => pm.expect(b.alerta).to.eql(true));",
+              "pm.test('classificado como critico', () => pm.expect(b.classificacao).to.eql('critico'));",
+              "console.log(b.mensagem);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/webhook/monitor-anuncio",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "webhook",
+            "monitor-anuncio"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"anuncio\": \"Fone Bluetooth TWS - Shopee Ads\",\n  \"gasto\": 1240.00,\n  \"faturamento\": 768.50,\n  \"vendas_qtd\": 9,\n  \"cliques\": 413,\n  \"impressoes\": 28400,\n  \"roas_minimo\": 2\n}"
+        },
+        "description": "Gasta R$1.240 e fatura R$768,50 -> ROAS 0.62x, abaixo do minimo 2x. Grava linha em anuncios_monitorados com status 'critico'."
+      }
+    },
+    {
+      "name": "2. ROAS saudavel → sem alerta",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const b = pm.response.json();",
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.test('alerta = false', () => pm.expect(b.alerta).to.eql(false));",
+              "pm.test('classificado como saudavel', () => pm.expect(b.classificacao).to.eql('saudavel'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/webhook/monitor-anuncio",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "webhook",
+            "monitor-anuncio"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"anuncio\": \"Kit Organizador de Gavetas\",\n  \"gasto\": 480.00,\n  \"faturamento\": 2136.90,\n  \"vendas_qtd\": 31,\n  \"cliques\": 295,\n  \"impressoes\": 9800,\n  \"roas_minimo\": 2\n}"
+        }
+      }
+    },
+    {
+      "name": "3. Sem faturamento → 400",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 400', () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/webhook/monitor-anuncio",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "webhook",
+            "monitor-anuncio"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"anuncio\": \"Capa de Celular\",\n  \"gasto\": 300.00,\n  \"vendas_qtd\": 5\n}"
+        }
+      }
+    },
+    {
+      "name": "4. Sem impressoes → ctr fica NULL",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const b = pm.response.json();",
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.test('ctr veio null', () => pm.expect(b.ctr).to.eql(null));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/webhook/monitor-anuncio",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "webhook",
+            "monitor-anuncio"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"anuncio\": \"Teste Sem Impressoes\",\n  \"gasto\": 200.00,\n  \"faturamento\": 900.00,\n  \"vendas_qtd\": 12,\n  \"cliques\": 80\n}"
+        },
+        "description": "Sem impressoes o CTR nao tem como ser calculado. O nó Code devolve null e a coluna ctr fica NULL no banco."
+      }
+    }
+  ]
+}
